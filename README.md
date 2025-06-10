@@ -7,7 +7,7 @@ Before you start working each day (or before you start a new feature), make sure
 Rather than working directly on main, you make a new branch for your task. This keeps your work isolated until you’re ready to merge.
 
 
-Naming convention: feature/… for new stuff, bugfix/… for fixes, docs/… for documentation changes.
+Naming convention: feature/..., bugfix/... , docs/... or refactor/...
 1. git checkout -b feature/blink-led # -b both creates and switches to the new branch.
 
 make changes, commit (message with ) and push:
