@@ -19,13 +19,13 @@ alternativly
 
 after feature is done click merge on github
 delete branch locally & remotely:
-1. git branch -d feature/blink-led
-2. git push origin --delete feature/blink-led
+1. git checkout main
+2. git branch -d feature/blink-led
+3. git push origin --delete feature/blink-led
 
 go back to main and pull in the merge
-
-git checkout main
-git pull
+1. git checkout main
+2. git pull
 
 DONE
 
