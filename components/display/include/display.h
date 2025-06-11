@@ -2,6 +2,7 @@
 
 #include "esp_lcd_io_i2c.h"
 #include "esp_lcd_panel_io.h"
+#include "driver/gpio.h"
 
 #define SSD1306_LCD_H_RES      128
 #define SSD1306_LCD_V_RES      64
