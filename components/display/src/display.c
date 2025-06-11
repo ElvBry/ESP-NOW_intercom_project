@@ -1,6 +1,7 @@
 #include "display.h"
 #include "esp_lcd_io_i2c.h"
 #include "driver/i2c_master.h"
+#include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_io.h"
