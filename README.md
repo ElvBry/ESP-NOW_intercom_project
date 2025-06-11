@@ -7,7 +7,7 @@ Before you start working each day (or before you start a new feature), make sure
 Rather than working directly on main, you make a new branch for your task. This keeps your work isolated until you’re ready to merge.
 
 
-Naming convention: feature/… for new stuff, bugfix/… for fixes, docs/… for documentation changes.
+Naming convention: feature/, fix/, docs/, chore/, restructure/
 1. git checkout -b feature/blink-led # -b both creates and switches to the new branch.
 
 make changes, commit (message with ) and push:
@@ -17,18 +17,23 @@ alternativly
 2. git commit -m "feat(blink): add adjustable blink period via Kconfig"
 3. git push -u origin feature/blink-led
 
-after feature is done click merge on github
-delete branch locally & remotely:
+
+after feature is complete
 1. git checkout main
+2. git merge feature/blink-led
+3. git push origin main
+
+delete branch locally & remotely:
 2. git branch -d feature/blink-led
 3. git push origin --delete feature/blink-led
 
-go back to main and pull in the merge
-1. git checkout main
-2. git pull
-
 DONE
 
+for small changes
+
+1. git checkout main
+2. git commit -am "fix(display): correct y-axis origin"
+3. git push origin main
 
 If first configuration or after change in sdkconfig.defaults
 
