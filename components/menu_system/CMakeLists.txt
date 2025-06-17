@@ -1,6 +1,6 @@
+
 idf_component_register(
-    SRCS       "src/menu_system.c"
-    INCLUDE_DIRS "include"
+    SRCS "src/menu_system.c" "src/item_tree.c"
+    INCLUDE_DIRS "include" "include/menu_system"
     REQUIRES
-    PRIV_REQUIRES
 )
