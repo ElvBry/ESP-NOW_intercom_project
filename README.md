@@ -17,8 +17,10 @@ alternativly
 2. git commit -m "feat(blink): add adjustable blink period via Kconfig"
 3. git push -u origin feature/blink-led
 
+afterwards push from branch regularly after commits with:
+1. git push
 
-after feature is complete
+after feature is complete:
 1. git checkout main
 2. git merge feature/blink-led
 3. git push origin main
@@ -32,8 +34,9 @@ DONE
 for small changes
 
 1. git checkout main
-2. git commit -am "fix(display): correct y-axis origin"
-3. git push origin main
+2. git add components/display
+3. git commit -am "fix(display): correct y-axis origin"
+4. git push origin main
 
 If first configuration or after change in sdkconfig.defaults
 
