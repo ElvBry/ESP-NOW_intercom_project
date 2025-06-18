@@ -1,43 +1,58 @@
-#include "bitmap.h"
-#include "font5x7.h"
+#include "display/bitmap.h"
+#include "display/font5x7.h"
+#include "esp_lcd_panel_io.h"
 #include <string.h>
+#include <esp_err.h>
 
-
-void build_text_bitmap_clipped(uint16_t slot_w, uint16_t slot_h, uint8_t *slot_bitmap, const char *str, uint16_t str_size)
+void ssd1306_print_text_clipped(
+    esp_lcd_panel_io_handle_t io,
+    uint8_t                   page,
+    uint8_t                   col_start,
+    const char               *s,
+    uint8_t                   max_width,
+    bool                      invert)
 {
-    if (slot_h != 8) return; // not supported yet
-    memset(slot_bitmap, 0, slot_w);
-    uint16_t max_chars = slot_w / 6; // one extra for blank space between lines
-    for (uint16_t ci = 0; ci < max_chars && ci < str_size; ci++) {
-        unsigned char c = (unsigned char)str[ci];
-        for (int col = 0; col < 5; col++) {
-            slot_bitmap[ci*6 + col] = font5x7[c+0][col];
+    uint8_t buf[CHAR_W];
+    uint8_t x = col_start;
+
+    while (*s) {
+        if (x + CHAR_W > col_start + max_width) break;
+
+        buf[0] = invert ? 0xFF : 0x00;
+        unsigned char c = (unsigned char)*s++;
+        for (int i = 0; i < 5; i++) {
+            uint8_t bits = font5x7[c][i];
+            buf[1+i] = invert ? ~bits : bits;
         }
-        slot_bitmap[ci*6 + 5] = 0x00;    
-    }
-}
-/*
-uint8_t* get_shifted_bitmap(int16_t slot_w, int16_t slot_h, uint8_t *page_bitmap, int16_t x_shift)
-{
-
-    uint8_t shifted_buf[slot_w];
-    memset(shifted_buf, 0x00, slot_w);
-    for (int i = 0; i < slot_w; i++) {
         
+
+        uint8_t page_param[2] = { page, page };
+        esp_lcd_panel_io_tx_param(io, 0x22, page_param, sizeof(page_param));
+
+        uint8_t col_param[2] = { x, x + CHAR_W - 1 };
+        esp_lcd_panel_io_tx_param(io, 0x21, col_param, sizeof(col_param));
+
+        esp_lcd_panel_io_tx_color(io, -1, buf, CHAR_W);
+        x += CHAR_W;
     }
-    for (int y = 0; y < slot_h; y++) {
-        uint8_t *row = page_bitmap + y * slot_w;
-        memcpy(row_buf, row, slot_w);
-        memset(row, 0, slot_w);
-        for (int x = 0; x < slot_w; x++) {
-            int src_x = x + x_shift;
-            if (src_x >= 0 && src_x < slot_w) row[x] = row_buf[src_x];
+
+    if (x < col_start + max_width) {
+        uint8_t blank_width = (col_start + max_width) - x;
+
+        static uint8_t fill_buf[CHAR_W];
+
+        memset(fill_buf, invert ? 0xFF : 0x00, CHAR_W);
+
+
+        uint8_t page_param[2] = { page, page };
+        esp_lcd_panel_io_tx_param(io, 0x22, page_param, sizeof(page_param));
+        uint8_t col_param[2] = { x, x + blank_width - 1 };
+        esp_lcd_panel_io_tx_param(io, 0x21, col_param, sizeof(col_param));
+
+        while (blank_width) {
+            uint8_t chunk = blank_width > CHAR_W ? CHAR_W : blank_width;
+            esp_lcd_panel_io_tx_color(io, -1, fill_buf, chunk);
+            blank_width -= chunk;
         }
     }
-}
-*/
-
-void invert_bitmap(int16_t slot_w, uint8_t *slot_bitmap)
-{
-    for (int i = 0; i < slot_w; i++) slot_bitmap[i] = ~slot_bitmap[i];
 }

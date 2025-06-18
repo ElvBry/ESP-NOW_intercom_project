@@ -1,4 +1,4 @@
-#include "font5x7.h"
+#include "display/font5x7.h"
 #include <stdint.h>
 
 // Standard ASCII 5x7 font
