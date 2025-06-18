@@ -1,4 +1,4 @@
-#include "display.h"
+#include "display/display.h"
 #include "esp_lcd_io_i2c.h"
 #include "driver/i2c_master.h"
 #include "esp_err.h"
@@ -8,7 +8,7 @@
 #include <string.h>
 
 
-lcd_handles ssd1306_get_handle(i2c_port_num_t i2c_bus_port, gpio_num_t sda_pin, gpio_num_t scl_pin)
+lcd_handles_t ssd1306_get_handles(i2c_port_num_t i2c_bus_port, gpio_num_t sda_pin, gpio_num_t scl_pin)
 {
     i2c_master_bus_handle_t i2c_bus = NULL;
     i2c_master_bus_config_t bus_config = {
@@ -23,7 +23,7 @@ lcd_handles ssd1306_get_handle(i2c_port_num_t i2c_bus_port, gpio_num_t sda_pin, 
 
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &i2c_bus));
 
-    lcd_handles handles = {.io = NULL, .panel = NULL};
+    lcd_handles_t handles = {.io = NULL, .panel = NULL};
     esp_lcd_panel_io_i2c_config_t io_config = {
         .dev_addr = SSD1306_I2C_HW_ADDR,
         .scl_speed_hz = LCD_PIXEL_CLOCK_HZ,
@@ -46,45 +46,60 @@ lcd_handles ssd1306_get_handle(i2c_port_num_t i2c_bus_port, gpio_num_t sda_pin, 
     return handles;
 }
 
-esp_err_t lcd_start(esp_lcd_panel_handle_t panel)
+esp_err_t ssd1306_start(lcd_handles_t handles)
 {   
     esp_err_t err;
-    err = esp_lcd_panel_reset(panel);
+    err = esp_lcd_panel_reset(handles.panel);
     if (err != ESP_OK) return err;
-    err = esp_lcd_panel_init(panel);
+    err = esp_lcd_panel_init(handles.panel);
     if (err != ESP_OK) return err;
-    err = esp_lcd_panel_disp_on_off(panel, true);
+    const uint8_t page_mode = 0x02;
+    err = esp_lcd_panel_io_tx_param(handles.io, 0x20, &page_mode, sizeof(page_mode));
+    if (err != ESP_OK) return err;
+    err = esp_lcd_panel_disp_on_off(handles.panel, true);
     return err;
 }
 
-esp_err_t lcd_end(esp_lcd_panel_handle_t panel) 
+esp_err_t ssd1306_end(esp_lcd_panel_handle_t panel) 
 {
     return esp_lcd_panel_del(panel);
 }
 
-
-esp_err_t clear_screen(esp_lcd_panel_handle_t panel) {
+esp_err_t ssd1306_clear_screen(esp_lcd_panel_io_handle_t io)
+{
     esp_err_t err;
-    static uint8_t blank_page[128];
-    memset(blank_page, 0x00, sizeof(blank_page));
-    for (int page = 0; page < 8; page++) {
-        int y0 = page * 8;
-        err = esp_lcd_panel_draw_bitmap(panel, 0, y0, 127, y0 +7, blank_page);
-        if(err != ESP_OK) return err;
+    static uint8_t blank_line[128];
+    memset(blank_line, 0x00, sizeof(blank_line));
+    for (uint8_t page = 0; page < 8; page++) {
+        // 1) Select page (0x22 = Set Page Start/End)
+        uint8_t page_param[2] = { page, page };
+        err = esp_lcd_panel_io_tx_param(io, 0x22, page_param, sizeof(page_param));
+        if (err != ESP_OK) return err;
+        // 2) Select full‐width columns (0x21 = Set Column Start/End)
+        uint8_t col_param[2] = { 0x00, 0x7F };  // 0…127
+        err = esp_lcd_panel_io_tx_param(io, 0x21, col_param, sizeof(col_param));
+        if (err != ESP_OK) return err;
+        err = esp_lcd_panel_io_tx_color(io, -1, blank_line, sizeof(blank_line));
+        if (err != ESP_OK) return err;
     }
     return ESP_OK;
 }
 
 
-
-esp_err_t white_screen(esp_lcd_panel_handle_t panel) {
+esp_err_t ssd1306_white_screen(esp_lcd_panel_io_handle_t io)
+{
     esp_err_t err;
-    static uint8_t white_page[128];
-    memset(white_page, 0xFF, sizeof(white_page));
-    for (int page = 0; page < 8; page++) {
-        int y0 = page * 8;
-        err = esp_lcd_panel_draw_bitmap(panel, 0, y0, 127, y0 +7, white_page);
-        if(err != ESP_OK) return err;
+    static uint8_t white_line[128];
+    memset(white_line, 0x00, sizeof(white_line));
+    for (uint8_t page = 0; page < 8; page++) {
+        uint8_t page_param[2] = { page, page };
+        err = esp_lcd_panel_io_tx_param(io, 0x22, page_param, sizeof(page_param));
+        if (err != ESP_OK) return err;
+        uint8_t col_param[2] = { 0x00, 0x7F };
+        err = esp_lcd_panel_io_tx_param(io, 0x21, col_param, sizeof(col_param));
+        if (err != ESP_OK) return err;
+        err = esp_lcd_panel_io_tx_color(io, -1, white_line, sizeof(white_line));
+        if (err != ESP_OK) return err;
     }
     return ESP_OK;
 }

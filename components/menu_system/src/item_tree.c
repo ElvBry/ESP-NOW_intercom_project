@@ -1,11 +1,10 @@
-#include "item_tree.h"
+#include "menu_system/item_tree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include "esp_heap_caps.h"
 #include "esp_err.h"
-#define LOG_LOCAL_LEVEL ESP_LOG_WARN
 #include "esp_log.h"
 
 const char *TAG = "ITEM_TREE";
