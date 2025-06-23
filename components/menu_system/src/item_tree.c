@@ -111,3 +111,25 @@ void item_free(item_t *it)
     ITEM_FREE(it->children);
     ITEM_FREE(it);
 }
+
+esp_err_t item_remove_child(item_t *parent, item_t *child)
+{
+    if (!parent || !child) return ESP_ERR_INVALID_ARG;
+    // find child index
+    uint16_t i;
+    for (i = 0; i < parent->child_count; i++) {
+        if (parent->children[i] == child) break;
+    }
+    if (i == parent->child_count) {
+        ESP_LOGE(TAG, "remove_child: not found");
+        return ESP_ERR_NOT_FOUND;
+    }
+    // free the subtree
+    item_free(child);
+    // shift down the rest
+    for (; i + 1 < parent->child_count; i++) {
+        parent->children[i] = parent->children[i+1];
+    }
+    parent->child_count--;
+    return ESP_OK;
+}

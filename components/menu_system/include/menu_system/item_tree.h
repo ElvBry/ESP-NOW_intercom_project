@@ -81,3 +81,9 @@ void item_print(const item_t *it, int level);
 // Recursively free an item and all its descendants
 void item_free(item_t *it);
 
+/** 
+ * @brief Calls item_free on item and updates parent's child count and children array.
+ * 
+ * Returns ESP_OK on success, or ESP_ERR_INVALID_ARG if parent or child is NULL.
+ */
+esp_err_t item_remove_child(item_t *parent, item_t *child);

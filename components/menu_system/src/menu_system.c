@@ -9,6 +9,8 @@
 #include <esp_err.h>
 #include <esp_log.h>
 #include <string.h>
+#include <inttypes.h>
+
 
 static const char* TAG = "MENU_SYSTEM";
 
@@ -19,6 +21,68 @@ static uint8_t current_page = 1;
 static uint8_t page_tot = 1;     // Total amount of pages to display 
 
 static char page_counter[8]; // Buffer for page counter text including null-terminator, e.g. "1/3" or "255/255"
+
+static uint16_t new_folder_count = 0;
+
+// App callback to add new folder to parent
+static inline void add_folder_cb(item_t *item) 
+{
+    if (!item || !item->parent) {
+        ESP_LOGE(TAG, "add_folder_cb: invalid item or no parent");
+        return;
+    }
+
+    char name_buf[32];
+    int len = snprintf(name_buf, sizeof(name_buf),
+                       "New folder %" PRIu16,
+                       new_folder_count++);
+    if (len < 0 || len >= sizeof(name_buf)) {
+        ESP_LOGE(TAG, "add_folder_cb: name formatting failed");
+        return;
+    }
+
+    item_t *new_folder = NULL;
+    esp_err_t err = item_add_child(
+        item->parent,
+        ITEM_TYPE_FOLDER,
+        name_buf,
+        1,
+        NULL,
+        NULL,
+        &new_folder
+    );
+    if (err != ESP_OK || !new_folder) {
+        ESP_LOGE(TAG, "add_folder_cb: item_add_child failed (%d)", err);
+        return;
+    }
+
+    ESP_LOGI(TAG,
+             "Added \"%s\" (child #%u) to \"%s\"",
+             new_folder->name,
+             item->parent->child_count,
+             item->parent->name);
+}
+
+// App callback to add new folder to parent
+static inline void remove_folder_cb(item_t *item) 
+{
+    if (!item || !item->parent) {
+        ESP_LOGE(TAG, "remove_folder_cb: invalid item or no parent");
+        return;
+    }
+    for (int32_t i = item->parent->child_count - 1; i > -1; i--) {
+        if (item->parent->children[i]->type == ITEM_TYPE_FOLDER) {
+            ESP_LOGI(TAG, "Removed folder \"%s\" from parent \"%s\"", item->parent->children[i]->name, item->parent->name);
+            item_remove_child(item->parent, item->parent->children[i]);
+            if(new_folder_count > 0) new_folder_count--;
+            return; // Remove only the last folder
+        }
+    }
+    ESP_LOGI(TAG, "No folders to remove in parent \"%s\"", item->parent->name);
+}
+
+
+
 
 static inline void calculate_page_total(const uint8_t child_count) {
     if (child_count == 0) page_tot = 1;// At least one page
@@ -172,6 +236,7 @@ static void menu_handler_task(void *pvParameters)
     esp_lcd_panel_io_handle_t io = args->io;
     item_t *current_item = args->initial_menu;
     item_t *home_menu = args->initial_menu;
+    item_t *current_target = NULL;
     menu_ptr = 0;
     current_page = 1;
     calculate_page_total(current_item->child_count);
@@ -182,7 +247,23 @@ static void menu_handler_task(void *pvParameters)
             continue;
         switch (evt) {
             case MENU_EVT_SELECT:
-                switch (current_item->type) {
+                if (menu_ptr == 0) {
+                    // On header row
+                    current_target = current_item->parent ? current_item->parent : current_item;
+                    if (!current_target) {
+                        ESP_LOGE(TAG, "Select: no target!");
+                        break;
+                    }
+                } else {
+                    // On child row
+                    uint8_t idx = (current_page - 1)*MENU_MAX_ITEMS_PER_PAGE + (menu_ptr - 1);
+                    if (idx >= current_item->child_count) {
+                        ESP_LOGE(TAG, "Select: invalid index %d", idx);
+                        break;
+                    }
+                    current_target = current_item->children[idx];
+                }
+                switch (current_target->type) {
                     case ITEM_TYPE_FOLDER:
                         if (menu_ptr == 0) {
                             if (current_item->parent == NULL) {
@@ -193,15 +274,9 @@ static void menu_handler_task(void *pvParameters)
                                 ESP_LOGI(TAG, "Returning to parent folder: %s", current_item->name);
                             }
                         } else {
-                            uint8_t item_idx = (current_page - 1) * MENU_MAX_ITEMS_PER_PAGE + menu_ptr - 1;
-                            if (item_idx >= current_item->child_count) {
-                                ESP_LOGE(TAG, "Invalid item index in menu: %d", item_idx);
-                                continue;
-                            }
-                            current_item = current_item->children[item_idx];
+                            current_item = current_target;
                             ESP_LOGI(TAG, "Selected folder: %s", current_item->name);
                         }
-
                         menu_ptr = 0;
                         current_page = 1;
                         calculate_page_total(current_item->child_count);
@@ -209,25 +284,29 @@ static void menu_handler_task(void *pvParameters)
                         highlight_item(current_item, io);
                         break;
                     case ITEM_TYPE_APP:
-                        ESP_LOGI(TAG, "Executing app: %s", current_item->name);
-                        if (current_item->callback) current_item->callback(current_item);
-                        else ESP_LOGW(TAG, "No callback set for app: %s", current_item->name);
+                        ESP_LOGI(TAG, "Executing app: %s", current_target->name);
+                        if (current_target->callback) {
+                            current_target->callback(current_target);
+                            calculate_page_total(current_item->child_count);
+                            draw_folder(current_item, io);
+                            highlight_item(current_item, io);
+                        } else ESP_LOGW(TAG, "No callback set for app: %s", current_target->name);
                         break;
                     case ITEM_TYPE_TEXT:
-                        ESP_LOGI(TAG, "Displaying text: %s", current_item->name);
-                        if (current_item->ctx) {
+                        ESP_LOGI(TAG, "Displaying text: %s", current_target->name);
+                        if (current_target->ctx) {
                             ssd1306_print_text_clipped(
                                 io,
                                 1,
                                 0,
-                                (const char *)current_item->ctx,
+                                (const char *)current_target->ctx,
                                 SSD1306_LCD_H_RES,
                                 INVERTED
                             );
-                        } else ESP_LOGW(TAG, "No context set for text item: %s", current_item->name);
+                        } else ESP_LOGW(TAG, "No context set for text item: %s", current_target->name);
                         break;
                     default:
-                        ESP_LOGE(TAG, "Unimplemented item type: %d", current_item->type);
+                        ESP_LOGE(TAG, "Unimplemented item type: %d", current_target->type);
                         break;
                 }
                 break;
@@ -326,19 +405,19 @@ static esp_err_t init_menu_handler_task(item_t *root, const esp_lcd_panel_io_han
     return ESP_OK;
 }
 
-void menu_system_init(esp_lcd_panel_io_handle_t io)
+item_t* menu_system_create_default_system(void)
 {
     item_t *root = ITEM_MALLOC(sizeof(item_t));
     if (!root) {
         ESP_LOGE(TAG, "OOM allocating root item_t");
-        return;
+        return NULL;
     }
-    if (item_init(root, ITEM_TYPE_FOLDER, "Main menu", NULL, 10) != ESP_OK) return;
+    if (item_init(root, ITEM_TYPE_FOLDER, "Main menu", NULL, 10) != ESP_OK) return NULL;
     ESP_LOGI(TAG, "Menu system initialized with root: %s", root->name);
     item_t *subfolder = ITEM_MALLOC(sizeof(item_t));
     if (!subfolder) {
         ESP_LOGE(TAG, "OOM allocating subfolder item_t");
-        return;
+        return NULL;
     }
     item_add_child(root,
                    ITEM_TYPE_FOLDER,
@@ -354,6 +433,20 @@ void menu_system_init(esp_lcd_panel_io_handle_t io)
                     NULL,
                     NULL,
                     NULL);
+    item_add_child(subfolder,
+                   ITEM_TYPE_APP,
+                   "Add folder",
+                   0,
+                   add_folder_cb,
+                   NULL,
+                   NULL);
+    item_add_child(subfolder,
+                   ITEM_TYPE_APP,
+                   "remove folder",
+                   0,
+                   remove_folder_cb,
+                   NULL,
+                   NULL);
     item_add_child(root,
                     ITEM_TYPE_FOLDER,
                     "SubFolder1",
@@ -417,6 +510,15 @@ void menu_system_init(esp_lcd_panel_io_handle_t io)
                     NULL,
                     NULL,
                     NULL);
+        return root;
+}
+
+void menu_system_init(esp_lcd_panel_io_handle_t io, item_t *root)
+{
+    if (!io || !root) {
+        ESP_LOGE(TAG, "Invalid parameters for menu_system_init");
+        return;
+    }
     init_menu_handler_task(root, io);
 }
 

@@ -12,7 +12,8 @@ void app_main(void) {
     ESP_ERROR_CHECK(ssd1306_start(handles));
     ESP_ERROR_CHECK(ssd1306_white_screen(handles.io));
     ESP_ERROR_CHECK(ssd1306_clear_screen(handles.io));
-    menu_system_init(handles.io);
+    item_t* root = menu_system_create_default_system();
+    menu_system_init(handles.io, root);
     QueueHandle_t menu_event_queue = menu_system_get_event_queue();
     assert(uart_handler_init());
     QueueHandle_t q = uart_handler_get_queue();

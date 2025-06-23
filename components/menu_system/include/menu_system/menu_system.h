@@ -25,8 +25,9 @@ typedef struct {
 } menu_handler_task_args_t;
 
 
+item_t* menu_system_create_default_system(void);
 
-void menu_system_init(esp_lcd_panel_io_handle_t io);
+void menu_system_init(esp_lcd_panel_io_handle_t io, item_t *root);
 
 QueueHandle_t menu_system_get_event_queue(void);
 
