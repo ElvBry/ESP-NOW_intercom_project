@@ -8,6 +8,8 @@
 #include <string.h>
 
 
+static SemaphoreHandle_t display_mutex;
+
 lcd_handles_t ssd1306_get_handles(i2c_port_num_t i2c_bus_port, gpio_num_t sda_pin, gpio_num_t scl_pin)
 {
     i2c_master_bus_handle_t i2c_bus = NULL;
@@ -48,6 +50,8 @@ lcd_handles_t ssd1306_get_handles(i2c_port_num_t i2c_bus_port, gpio_num_t sda_pi
 
 esp_err_t ssd1306_start(lcd_handles_t handles)
 {   
+    display_mutex = xSemaphoreCreateMutex();
+    if (display_mutex == NULL) return ESP_ERR_NO_MEM;
     esp_err_t err;
     err = esp_lcd_panel_reset(handles.panel);
     if (err != ESP_OK) return err;
@@ -62,11 +66,15 @@ esp_err_t ssd1306_start(lcd_handles_t handles)
 
 esp_err_t ssd1306_end(esp_lcd_panel_handle_t panel) 
 {
+    // Take the mutex to wait for any ongoing operations to finish, might cause other tasks to block if they take it afterwards
+    xSemaphoreTake(display_mutex, portMAX_DELAY); 
+    vSemaphoreDelete(display_mutex);
     return esp_lcd_panel_del(panel);
 }
 
 esp_err_t ssd1306_clear_screen(esp_lcd_panel_io_handle_t io)
 {
+    if (xSemaphoreTake(display_mutex, portMAX_DELAY) != pdTRUE) return ESP_ERR_TIMEOUT;
     esp_err_t err;
     static uint8_t blank_line[128];
     memset(blank_line, 0x00, sizeof(blank_line));
@@ -74,32 +82,53 @@ esp_err_t ssd1306_clear_screen(esp_lcd_panel_io_handle_t io)
         // 1) Select page (0x22 = Set Page Start/End)
         uint8_t page_param[2] = { page, page };
         err = esp_lcd_panel_io_tx_param(io, 0x22, page_param, sizeof(page_param));
-        if (err != ESP_OK) return err;
+        if (err != ESP_OK) {
+            xSemaphoreGive(display_mutex);
+            return err;
+        }
         // 2) Select full‐width columns (0x21 = Set Column Start/End)
         uint8_t col_param[2] = { 0x00, 0x7F };  // 0…127
         err = esp_lcd_panel_io_tx_param(io, 0x21, col_param, sizeof(col_param));
-        if (err != ESP_OK) return err;
+        if (err != ESP_OK) {
+            xSemaphoreGive(display_mutex);
+            return err;
+        }
         err = esp_lcd_panel_io_tx_color(io, -1, blank_line, sizeof(blank_line));
-        if (err != ESP_OK) return err;
+        if (err != ESP_OK) {
+            xSemaphoreGive(display_mutex);
+            return err;
+        }
     }
+    xSemaphoreGive(display_mutex);
     return ESP_OK;
 }
 
 
 esp_err_t ssd1306_white_screen(esp_lcd_panel_io_handle_t io)
 {
+    if (xSemaphoreTake(display_mutex, portMAX_DELAY) != pdTRUE) return ESP_ERR_TIMEOUT;
     esp_err_t err;
     static uint8_t white_line[128];
-    memset(white_line, 0x00, sizeof(white_line));
+    memset(white_line, 0xFF, sizeof(white_line));
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t page_param[2] = { page, page };
         err = esp_lcd_panel_io_tx_param(io, 0x22, page_param, sizeof(page_param));
-        if (err != ESP_OK) return err;
+        if (err != ESP_OK) {
+            xSemaphoreGive(display_mutex);
+            return err;
+        }
         uint8_t col_param[2] = { 0x00, 0x7F };
         err = esp_lcd_panel_io_tx_param(io, 0x21, col_param, sizeof(col_param));
-        if (err != ESP_OK) return err;
+        if (err != ESP_OK) {
+            xSemaphoreGive(display_mutex);
+            return err;
+        }
         err = esp_lcd_panel_io_tx_color(io, -1, white_line, sizeof(white_line));
-        if (err != ESP_OK) return err;
+        if (err != ESP_OK) {
+            xSemaphoreGive(display_mutex);
+            return err;
+        }
     }
+    xSemaphoreGive(display_mutex);
     return ESP_OK;
 }

@@ -12,6 +12,7 @@ void ssd1306_print_text_clipped(
     uint8_t                   max_width,
     bool                      invert)
 {
+    if (xSemaphoreTake(display_mutex, portMAX_DELAY) != pdTRUE) return;
     uint8_t buf[CHAR_W];
     uint8_t x = col_start;
 
@@ -55,4 +56,5 @@ void ssd1306_print_text_clipped(
             blank_width -= chunk;
         }
     }
+    xSemaphoreGive(display_mutex);
 }
