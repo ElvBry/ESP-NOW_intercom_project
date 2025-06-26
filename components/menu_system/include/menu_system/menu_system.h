@@ -1,6 +1,6 @@
 #pragma once
 #include "menu_system/item_tree.h"
-#include "freertos/FreeRTOS.h"
+#include "display/display.h"
 #include "freertos/queue.h"
 #include "esp_lcd_panel_io.h"
 #include <esp_err.h>

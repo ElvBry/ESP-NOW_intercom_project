@@ -4,9 +4,10 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_lcd_panel_ops.h"
+#include "freertos/FreeRTOS.h"
 #include "display/font5x7.h"
-#include "display/bitmap.h"
-#include "freertos/semphr.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 #define SSD1306_LCD_H_RES      128
 #define SSD1306_LCD_V_RES      64
@@ -19,7 +20,7 @@
 
 #define SSD1306_PIN_NUM_RST -1
 
-extern SemaphoreHandle_t display_mutex; // Mutex for display operations
+#define CHAR_W 6 // Width of a character in the 5x7 font, including blank column
 
 typedef struct {
     esp_lcd_panel_handle_t panel;
@@ -40,3 +41,22 @@ esp_err_t ssd1306_clear_screen(esp_lcd_panel_io_handle_t io);
 
 // Set every pixel on screen to 1
 esp_err_t ssd1306_white_screen(esp_lcd_panel_io_handle_t io);
+
+/**
+ * Print a NUL-terminated string on one SSD1306 page,
+ * clipped to at most max_width pixels, with optional inversion.
+ *
+ * @param io         The esp_lcd_panel_io_handle_t
+ * @param page       Target page (0–7)
+ * @param col_start  Starting column (0–127)
+ * @param s          NUL-terminated string
+ * @param max_width  Maximum horizontal span in pixels
+ * @param invert     If true, draw black glyph on white; if false, white glyph on black
+ */
+void ssd1306_print_text_clipped(
+    esp_lcd_panel_io_handle_t io,
+    uint8_t                   page,
+    uint8_t                   col_start,
+    const char               *s,
+    uint8_t                   max_width,
+    bool                      invert);

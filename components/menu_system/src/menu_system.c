@@ -1,7 +1,6 @@
 #include "menu_system/menu_system.h"
 #include "menu_system/item_tree.h"
 #include "display/display.h"
-#include "display/bitmap.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include <stdint.h>
