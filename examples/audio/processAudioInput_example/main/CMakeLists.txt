@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "audioPrintInput.c"
+    SRCS "processAudioInput_example.c"
     INCLUDE_DIRS "."
     REQUIRES audio
 )
