@@ -1,12 +1,16 @@
 
 > **Status:** In development
-> **Goal:** Mesh-networked ESP32 nodes communicating via ESP-NOW to send real time data and audio
+
+> **Goal:** Mesh-networked esp32 nodes communicating via ESP-NOW to send real time data and audio
 
 ---
 
+## LICENSE
+Apache License 2.0
+
 ## Overview
 
-This repository houses an ESP-IDF project that will eventually let multiple ESP32 nodes form a mesh and exchange data in real time. So far, it provides reusable components for:
+This is an unfinished ESP-IDF intercom project. The goal is to eventually let multiple esp32 nodes form a mesh and exchange audio and data to eachother using ESP-NOW and efficient routing. So far, it provides reusable components for:
 
 - **UART input** (`uart_handler`)  
 - **High-resolution timing** (`utility/timer`)  
