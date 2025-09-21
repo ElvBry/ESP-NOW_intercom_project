@@ -5,7 +5,7 @@
 #include <string.h>
 
 void app_main(void) {
-    ESP_ERROR_CHECK(uart_handler_init(12));
+    ESP_ERROR_CHECK(uart_handler_init());
     QueueHandle_t q = uart_handler_get_queue();
     command_t cmd;
     while (xQueueReceive(q, &cmd, portMAX_DELAY)) {

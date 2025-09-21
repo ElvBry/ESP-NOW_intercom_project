@@ -17,10 +17,14 @@ static TimerHandle_t       s_timeout_timer;
 static char   s_cmd_buf[MAX_CMD_LEN];
 static size_t s_cmd_idx = 0;
 
-// If input does not end with INPUT_END_CH, reading of input buffer will end in 10 ms
+// If input does not end with INPUT_END_CH, reading of input buffer will end in TIMEOUT_DURATION_MS
 static void IRAM_ATTR uart_handler_timeout_cb(TimerHandle_t t)
 {
-    ESP_LOGI(TAG, "command must end with %c", INPUT_END_CH);
+    #if INPUT_END_CH == '\n'
+        ESP_LOGI(TAG, "command must end with \\n\n");
+    #else
+        ESP_LOGI(TAG, "command must end with %c", INPUT_END_CH);
+    #endif
     uart_flush_input(UART_NUM_0);
     s_cmd_idx = 0;
 }
@@ -75,12 +79,12 @@ static void uart_handler_input_evt_task(void *parameters)
     }
 }
 
-esp_err_t uart_handler_init(UBaseType_t uxPriority)
+esp_err_t uart_handler_init()
 {
     s_tx_mutex     = xSemaphoreCreateMutex();
     s_evt_queue    = xQueueCreate(EVT_QUEUE_SIZE, sizeof(uart_event_t));
     s_cmd_queue    = xQueueCreate(CMD_QUEUE_SIZE, sizeof(command_t));
-    s_timeout_timer = xTimerCreate("to", pdMS_TO_TICKS(10), pdFALSE,
+    s_timeout_timer = xTimerCreate("to", pdMS_TO_TICKS(TIMEOUT_DURATION_MS), pdFALSE,
                                    NULL, uart_handler_timeout_cb);
 
     if (!s_tx_mutex || !s_evt_queue || !s_cmd_queue || !s_timeout_timer)
@@ -97,7 +101,7 @@ esp_err_t uart_handler_init(UBaseType_t uxPriority)
     uart_driver_install(UART_NUM_0, 1024, 512, EVT_QUEUE_SIZE,
                         &s_evt_queue, 0);
     xTaskCreate(uart_handler_input_evt_task, "uart_evt", 4096,
-                NULL, uxPriority, NULL);
+                NULL, 12, NULL);
     return ESP_OK;
 }
 

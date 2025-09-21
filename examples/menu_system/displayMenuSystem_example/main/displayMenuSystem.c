@@ -1,8 +1,8 @@
 #include "display/display.h"
 #include "menu_system/menu_system.h"
 #include "uart_handler.h"
-#include <esp_log.h>
-#include <esp_lcd_panel_io.h>
+#include "esp_log.h"
+#include "esp_lcd_panel_io.h"
 #include <string.h>
 
 static const char* TAG = "displayMenuSystem";
@@ -15,7 +15,7 @@ void app_main(void) {
     item_t* root = menu_system_create_default_system();
     menu_system_init(handles.io, root);
     QueueHandle_t menu_event_queue = menu_system_get_event_queue();
-    assert(uart_handler_init());
+    ESP_ERROR_CHECK(uart_handler_init());
     QueueHandle_t q = uart_handler_get_queue();
     command_t cmd;
     menu_event_type_t evt;

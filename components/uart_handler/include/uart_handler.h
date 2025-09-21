@@ -12,7 +12,9 @@
 
 
 #define MAX_CMD_LEN 16
-#define INPUT_END_CH '!' // Character indicating end of input, 
+#define INPUT_END_CH '\n' // Character indicating end of input
+
+#define TIMEOUT_DURATION_MS 10
 
 typedef struct {
     char    str[MAX_CMD_LEN];
@@ -24,7 +26,7 @@ typedef struct {
  * @return ESP_OK on success, ESP_FAIL on failure
  * @param uxPriority Priority of the uart input task for freeRTOS
  */
-esp_err_t uart_handler_init(UBaseType_t uxPriority);
+esp_err_t uart_handler_init();
 
 // blocks until command string is ready
 QueueHandle_t uart_handler_get_queue(void);
